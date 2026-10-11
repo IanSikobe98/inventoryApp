@@ -13,9 +13,9 @@ class Env {
 
   static String get apiBaseUrl {
     if (_override.isNotEmpty) return _override;
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) { 
       return 'http://10.0.2.2:8080';
     }
-    return 'http://localhost:8080';
+    return 'http://10.248.241.45:8056';
   }
 }
