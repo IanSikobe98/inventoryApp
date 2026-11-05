@@ -28,9 +28,10 @@ extension AppRouteX on AppRoute {
       };
 }
 
-/// Which screen is showing, and whether the viewer is acting as admin or
-/// employee. The role here only decides which screens are offered: it is a UI
-/// convenience, not security. Real access control belongs on the API.
+/// Which screen is showing, and whether the signed-in person is an admin or an
+/// employee (taken from their role at sign-in). The role here only decides which
+/// screens are offered: it is a UI convenience, not security. Real access
+/// control belongs on the API.
 class SessionProvider extends ChangeNotifier {
   bool _admin = true;
   AppRoute _route = AppRoute.dashboard;
@@ -40,6 +41,16 @@ class SessionProvider extends ChangeNotifier {
 
   List<AppRoute> get routes =>
       _admin ? AppRoute.values : const [AppRoute.sell, AppRoute.sales];
+
+  /// Called after sign-in: the role from the server decides which screens show.
+  void applyRole({required bool admin}) {
+    _admin = admin;
+    _route = routes.first;
+    notifyListeners();
+  }
+
+  /// Called on sign-out so the next person starts from a clean slate.
+  void reset() => applyRole(admin: false);
 
   void setAdmin(bool value) {
     if (_admin == value) return;

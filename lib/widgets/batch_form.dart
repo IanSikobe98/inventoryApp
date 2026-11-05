@@ -8,7 +8,7 @@ import '../services/api_client.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import 'common.dart';
-import 'shoe_photo.dart';
+import 'picture_field.dart';
 
 /// Opens the add/edit dialog. Pass [batch] to edit, or nothing to add.
 Future<void> showBatchForm(BuildContext context, {ShoeBatch? batch}) {
@@ -52,11 +52,13 @@ class _BatchFormState extends State<BatchForm> {
   late final TextEditingController _size;
   late final TextEditingController _type;
   late final TextEditingController _colour;
-  late final TextEditingController _url;
   late final TextEditingController _qty;
   late final TextEditingController _cost;
   late final TextEditingController _wholesale;
   late final TextEditingController _retail;
+
+  /// What will be saved in pictureUrl: base64 text, an older http link, or null for none.
+  String? _picture;
 
   bool _saving = false;
   String? _error;
@@ -71,7 +73,7 @@ class _BatchFormState extends State<BatchForm> {
     _size = TextEditingController(text: b?.size ?? '');
     _type = TextEditingController(text: b?.type ?? '');
     _colour = TextEditingController(text: b?.colour ?? '');
-    _url = TextEditingController(text: b?.pictureUrl ?? '');
+    _picture = b?.pictureUrl;
     _qty = TextEditingController(
         text: b == null ? '' : b.quantityReceived.toString());
     _cost = TextEditingController(text: b == null ? '' : plainNumber(b.costPerShoe));
@@ -79,15 +81,12 @@ class _BatchFormState extends State<BatchForm> {
         TextEditingController(text: b == null ? '' : plainNumber(b.wholesalePrice));
     _retail =
         TextEditingController(text: b == null ? '' : plainNumber(b.retailPrice));
-    _url.addListener(() {
-      if (mounted) setState(() {});
-    });
   }
 
   @override
   void dispose() {
     for (final c in [
-      _code, _size, _type, _colour, _url, _qty, _cost, _wholesale, _retail
+      _code, _size, _type, _colour, _qty, _cost, _wholesale, _retail
     ]) {
       c.dispose();
     }
@@ -156,7 +155,7 @@ class _BatchFormState extends State<BatchForm> {
       'size': _size.text.trim(),
       'type': _type.text.trim(),
       'colour': _colour.text.trim(),
-      'pictureUrl': _url.text.trim().isEmpty ? null : _url.text.trim(),
+      'pictureUrl': _picture, // base64 text (or null to have no photo)
       'costPerShoe': double.parse(_cost.text.trim()),
       'wholesalePrice': double.parse(_wholesale.text.trim()),
       'retailPrice': double.parse(_retail.text.trim()),
@@ -261,18 +260,10 @@ class _BatchFormState extends State<BatchForm> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (_error != null) InlineError(_error!),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ShoePhoto(
-                          url: _url.text, width: 96, height: 96, radius: 12),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _field(_url, 'Photo link (optional)',
-                            hint: 'https://…/shoe.jpg',
-                            keyboard: TextInputType.url),
-                      ),
-                    ],
+                  PictureField(
+                    value: _picture,
+                    enabled: !_saving,
+                    onChanged: (v) => setState(() => _picture = v),
                   ),
                   const SizedBox(height: 16),
                   _grid([

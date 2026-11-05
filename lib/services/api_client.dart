@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/env.dart';
+import '../models/auth.dart';
 import '../models/dashboard_data.dart';
 import '../models/page_result.dart';
 import '../models/payment_mode.dart';
@@ -41,6 +42,51 @@ class ApiClient {
 
   final http.Client _client;
   final String baseUrl;
+
+  /// JWT from a successful sign-in; sent as `Authorization: Bearer ...` on every call.
+  String? _token;
+  String? get authToken => _token;
+  set authToken(String? value) => _token = (value == null || value.isEmpty) ? null : value;
+
+  /// Called when the server rejects a call that carried a token (HTTP 401),
+  /// i.e. the session expired. The app then returns to the sign-in screen.
+  void Function()? onUnauthorized;
+
+  // --------------------------------------------------------------------- auth
+
+  /// Step 1: check username + password. [password] is already protected
+  /// (see PasswordCipher). On success the server emails a one-time code.
+  Future<AuthChallenge> authenticate({
+    required String username,
+    required String password,
+  }) async {
+    final json = await _request('POST', '/api/v1/auth/authenticate',
+        body: {'username': username, 'password': password}, auth: false);
+    return AuthChallenge.fromJson(_asMap(json));
+  }
+
+  /// Step 2: send the one-time code (with the same credentials again).
+  Future<OtpResult> validateOtp({
+    required String username,
+    required String password,
+    required String otp,
+  }) async {
+    final json = await _request('POST', '/api/v1/auth/validateOtp',
+        body: {'username': username, 'password': password, 'otp': otp},
+        auth: false);
+    return OtpResult.fromJson(_asMap(json), fallbackName: username);
+  }
+
+  /// Ends the session on the server. Needs the token. Returns the server's message.
+  Future<String> logout() async {
+    final json = await _request('POST', '/api/v1/user/logout');
+    final map = _asMap(json);
+    return '${map['responseMessage'] ?? map['message'] ?? 'User Logged Out'}';
+  }
+
+  Map<String, dynamic> _asMap(dynamic json) => json is Map<String, dynamic>
+      ? json
+      : throw ApiException('The server sent an unexpected reply.');
 
   // ---------------------------------------------------------------- dashboard
 
@@ -171,9 +217,14 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? query,
     Object? body,
+    bool auth = true,
   }) async {
     final request = http.Request(method, _uri(path, query));
     request.headers['Accept'] = 'application/json';
+    final token = _token;
+    if (auth && token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
     if (body != null) {
       request.headers['Content-Type'] = 'application/json';
       request.body = jsonEncode(body);
@@ -205,6 +256,11 @@ class ApiClient {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return decoded;
     }
+    if (auth && token != null && response.statusCode == 401) {
+      onUnauthorized?.call();
+      throw ApiException('Your session has expired. Please sign in again.',
+          statusCode: 401);
+    }
     throw _errorFrom(response.statusCode, decoded);
   }
 
@@ -212,7 +268,8 @@ class ApiClient {
     var message = 'Request failed ($status).';
     final fieldErrors = <String, String>{};
     if (decoded is Map<String, dynamic>) {
-      final m = decoded['message'];
+      // Inventory endpoints use "message"; the auth endpoints use "responseMessage".
+      final m = decoded['message'] ?? decoded['responseMessage'] ?? decoded['error'];
       if (m is String && m.isNotEmpty) message = m;
       final fe = decoded['fieldErrors'];
       if (fe is List) {

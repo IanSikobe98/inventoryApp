@@ -13,6 +13,9 @@ dependencies:
   provider: ^6.1.2
   google_fonts: ^6.2.1
   intl: '>=0.19.0 <1.0.0'
+  image_picker: ^1.1.2   # camera / gallery
+  image: ^4.2.0          # pure-Dart resize + JPEG encode (works on every platform)
+  encrypt: ^5.0.3         # AES for the password field the API expects
 
 dev_dependencies:
   flutter_test:

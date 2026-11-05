@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/session_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/account_menu.dart';
 import 'dashboard_screen.dart';
 import 'inventory_screen.dart';
 import 'payment_modes_screen.dart';
@@ -50,8 +51,8 @@ class AppShell extends StatelessWidget {
         title: const _Brand(compact: true),
         actions: const [
           Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Center(child: RoleToggle()),
+            padding: EdgeInsets.only(right: 14),
+            child: Center(child: AccountButton()),
           ),
         ],
       ),
@@ -136,14 +137,7 @@ class _Sidebar extends StatelessWidget {
             const Spacer(),
             const Divider(),
             const SizedBox(height: 14),
-            Text('VIEWING AS',
-                style: AppText.body(
-                        size: 10.5,
-                        weight: FontWeight.w600,
-                        color: AppColors.inkSoft)
-                    .copyWith(letterSpacing: 0.7)),
-            const SizedBox(height: 8),
-            const RoleToggle(expand: true),
+            const AccountCard(),
           ],
         ),
       ),
@@ -186,55 +180,6 @@ class _NavItem extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Admin / Employee switch. It only changes which screens are offered.
-class RoleToggle extends StatelessWidget {
-  const RoleToggle({super.key, this.expand = false});
-
-  final bool expand;
-
-  @override
-  Widget build(BuildContext context) {
-    final session = context.watch<SessionProvider>();
-
-    Widget seg(String label, bool selected, VoidCallback onTap) {
-      final child = InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? AppColors.pine : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(label,
-              style: AppText.body(
-                  size: 12.5,
-                  weight: FontWeight.w600,
-                  color: selected ? Colors.white : AppColors.inkSoft)),
-        ),
-      );
-      return expand ? Expanded(child: child) : child;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Row(
-        mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-        children: [
-          seg('Admin', session.isAdmin, () => session.setAdmin(true)),
-          seg('Employee', !session.isAdmin, () => session.setAdmin(false)),
-        ],
       ),
     );
   }
