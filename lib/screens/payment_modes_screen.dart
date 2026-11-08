@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/permissions.dart';
 import '../providers/payment_modes_provider.dart';
+import '../providers/session_provider.dart';
 import '../services/api_client.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
@@ -33,6 +35,8 @@ class _PaymentModesScreenState extends State<PaymentModesScreen> {
   @override
   Widget build(BuildContext context) {
     final p = context.watch<PaymentModesProvider>();
+    // Adding a mode and switching one on or off are both "managing" payment modes.
+    final canManage = context.watch<SessionProvider>().can(Perm.createPayment);
 
     Widget content;
     if (p.loading && p.modes.isEmpty) {
@@ -73,7 +77,7 @@ class _PaymentModesScreenState extends State<PaymentModesScreen> {
                       value: p.modes[i].active,
                       activeColor: Colors.white,
                       activeTrackColor: AppColors.pine,
-                      onChanged: (v) => _toggle(p, i, v),
+                      onChanged: canManage ? (v) => _toggle(p, i, v) : null,
                     ),
                   ],
                 ),
@@ -88,15 +92,17 @@ class _PaymentModesScreenState extends State<PaymentModesScreen> {
       title: 'Payment modes',
       subtitle: 'Choose how customers can pay.',
       onRefresh: () => p.load(),
-      action: FilledButton.icon(
-        key: const Key('addPaymentMode'),
-        onPressed: () => showDialog<void>(
-          context: context,
-          builder: (_) => const _AddModeDialog(),
-        ),
-        icon: const Icon(Icons.add, size: 18),
-        label: const Text('Add mode'),
-      ),
+      action: canManage
+          ? FilledButton.icon(
+              key: const Key('addPaymentMode'),
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const _AddModeDialog(),
+              ),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add mode'),
+            )
+          : null,
       children: [content],
     );
   }

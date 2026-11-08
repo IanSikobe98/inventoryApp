@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:stockroom_app/models/permissions.dart';
 import 'package:stockroom_app/providers/auth_provider.dart';
 import 'package:stockroom_app/providers/session_provider.dart';
 import 'package:stockroom_app/services/api_client.dart';
@@ -75,16 +76,16 @@ void main() {
     expect(auth.stage, AuthStage.signedIn);
     expect(auth.user!.name, 'Ian Walter');
     expect(api.authToken, 'jwt-token-123');
-    expect(session.isAdmin, isTrue);
+    expect(session.routes, AppRoute.values);
     expect(server.bodiesFor('/api/v1/auth/validateOtp').single,
         {'username': 'Ian', 'password': 'enc(SQEW13)', 'otp': '70000'});
   });
 
-  test('a non-admin role only gets the employee screens', () async {
-    server.otpResponse = otpJson(role: 'Employee');
+  test('a cashier only gets the screens their permissions allow', () async {
+    server.otpResponse =
+        otpJson(role: 'Employee', perms: [Perm.createSales, Perm.viewSales]);
     await auth.signIn('mary', 'pw');
     await auth.verifyOtp('1');
-    expect(session.isAdmin, isFalse);
     expect(session.routes, [AppRoute.sell, AppRoute.sales]);
     expect(session.route, AppRoute.sell);
   });
@@ -148,7 +149,8 @@ void main() {
     expect(auth.stage, AuthStage.signedOut);
     expect(auth.user, isNull);
     expect(api.authToken, isNull);
-    expect(session.isAdmin, isFalse);
+    expect(session.routes, isEmpty);
+    expect(session.can(Perm.viewSales), isFalse);
   });
 
   test('sign out still works when the server cannot be reached', () async {

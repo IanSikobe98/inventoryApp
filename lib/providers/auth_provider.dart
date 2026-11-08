@@ -125,7 +125,7 @@ class AuthProvider extends ChangeNotifier {
       _otpExpiresAt = null;
       _stage = AuthStage.signedIn;
       _busy = false;
-      _session.applyRole(admin: user.isAdmin);
+      _session.applyUser(user);
       notifyListeners();
       return true;
     } on ApiException catch (e) {

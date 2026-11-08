@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/permissions.dart';
 import '../providers/inventory_provider.dart';
+import '../providers/session_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/batch_card.dart';
 import '../widgets/batch_form.dart';
@@ -53,6 +55,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final inv = context.watch<InventoryProvider>();
+    final session = context.watch<SessionProvider>();
+    final canAdd = session.can(Perm.createInventory);
+    final canRestock = session.can(Perm.updateInventory);
+    final canEdit = session.can(Perm.updateInventory);
 
     Widget content;
     if (inv.loading && inv.batches.isEmpty) {
@@ -64,15 +70,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
         icon: Icons.inventory_2_outlined,
         message: (inv.query.isNotEmpty || inv.size.isNotEmpty || inv.lowOnly)
             ? 'No batches match your filters.'
-            : 'No shoe batches yet. Tap "Add batch" to register your first box.',
+            : (canAdd
+                ? 'No shoe batches yet. Tap "Add batch" to register your first box.'
+                : 'No shoe batches yet.'),
       );
     } else {
       content = GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 340,
-          mainAxisExtent: 388,
+          // The card is shorter when it has no Restock / Edit buttons.
+          mainAxisExtent: (canRestock || canEdit) ? 388 : 326,
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
         ),
@@ -81,8 +90,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
           final b = inv.batches[i];
           return BatchCard(
             batch: b,
-            onEdit: () => showBatchForm(context, batch: b),
-            onRestock: () => showRestockDialog(context, b),
+            onEdit: canEdit ? () => showBatchForm(context, batch: b) : null,
+            onRestock: canRestock ? () => showRestockDialog(context, b) : null,
           );
         },
       );
@@ -92,12 +101,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
       title: 'Inventory',
       subtitle: 'Shoe batches by box: size, type, colour and stock on hand.',
       onRefresh: () => inv.load(),
-      action: FilledButton.icon(
-        key: const Key('addBatch'),
-        onPressed: () => showBatchForm(context),
-        icon: const Icon(Icons.add, size: 18),
-        label: const Text('Add batch'),
-      ),
+      action: canAdd
+          ? FilledButton.icon(
+              key: const Key('addBatch'),
+              onPressed: () => showBatchForm(context),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add batch'),
+            )
+          : null,
       children: [
         Wrap(
           spacing: 10,

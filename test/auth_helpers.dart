@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'package:stockroom_app/models/permissions.dart';
+
 import 'helpers.dart';
 
 /// What `POST /api/v1/auth/authenticate` returns.
@@ -17,6 +19,7 @@ Map<String, dynamic> otpJson({
   String? message,
   String token = 'jwt-token-123',
   String role = 'ADMIN',
+  Iterable<String>? perms,
 }) =>
     ok
         ? {
@@ -28,7 +31,7 @@ Map<String, dynamic> otpJson({
               'firstName': 'Ian',
               'lastName': 'Walter',
               'role': role,
-              'usersPerm': ['SALES_CREATE', 'STOCK_VIEW'],
+              'usersPerm': (perms ?? Perm.all).toList(),
             },
           }
         : {

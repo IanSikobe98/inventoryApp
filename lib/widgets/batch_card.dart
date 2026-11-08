@@ -11,13 +11,17 @@ class BatchCard extends StatelessWidget {
   const BatchCard({
     super.key,
     required this.batch,
-    required this.onEdit,
-    required this.onRestock,
+    this.onEdit,
+    this.onRestock,
   });
 
   final ShoeBatch batch;
-  final VoidCallback onEdit;
-  final VoidCallback onRestock;
+
+  /// Null hides the button (the person may not edit batches).
+  final VoidCallback? onEdit;
+
+  /// Null hides the button (the person may not restock).
+  final VoidCallback? onRestock;
 
   @override
   Widget build(BuildContext context) {
@@ -88,29 +92,36 @@ class BatchCard extends StatelessWidget {
                     StockPill(batch: batch),
                   ],
                 ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: onRestock,
-                        style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10)),
-                        child: const Text('Restock'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: onEdit,
-                        style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10)),
-                        icon: const Icon(Icons.edit_outlined, size: 16),
-                        label: const Text('Edit'),
-                      ),
-                    ),
-                  ],
-                ),
+                if (onRestock != null || onEdit != null) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      if (onRestock != null)
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onRestock,
+                            style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10)),
+                            child: const Text('Restock'),
+                          ),
+                        ),
+                      if (onRestock != null && onEdit != null)
+                        const SizedBox(width: 8),
+                      if (onEdit != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: onEdit,
+                            style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10)),
+                            icon: const Icon(Icons.edit_outlined, size: 16),
+                            label: const Text('Edit'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

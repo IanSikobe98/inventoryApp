@@ -21,6 +21,7 @@ class AppProviders extends StatelessWidget {
     this.api,
     this.pictures,
     this.cipher,
+    this.permissions,
     required this.child,
   });
 
@@ -31,6 +32,9 @@ class AppProviders extends StatelessWidget {
 
   /// How the password is protected before it is sent (tests pass a plain one).
   final PasswordCipher? cipher;
+
+  /// Starting permissions. Normally empty until sign-in; tests pass some.
+  final Set<String>? permissions;
   final Widget child;
 
   @override
@@ -41,7 +45,8 @@ class AppProviders extends StatelessWidget {
         Provider<PictureService>(create: (_) => pictures ?? PictureService()),
         Provider<PasswordCipher>(
             create: (_) => cipher ?? PasswordCipher.fromEnvironment()),
-        ChangeNotifierProvider(create: (_) => SessionProvider()),
+        ChangeNotifierProvider(
+            create: (_) => SessionProvider(permissions: permissions ?? const {})),
         ChangeNotifierProvider(
             create: (c) => AuthProvider(
                   api: c.read<ApiClient>(),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../models/auth.dart';
+import '../models/permissions.dart';
+
 enum AppRoute { dashboard, inventory, sell, sales, payments }
 
 extension AppRouteX on AppRoute {
@@ -28,34 +31,54 @@ extension AppRouteX on AppRoute {
       };
 }
 
-/// Which screen is showing, and whether the signed-in person is an admin or an
-/// employee (taken from their role at sign-in). The role here only decides which
-/// screens are offered: it is a UI convenience, not security. Real access
-/// control belongs on the API.
+/// Which screen is showing, and what the signed-in person is allowed to see.
+///
+/// Permissions come from `usersPerm` at sign-in. They only decide which tabs and
+/// buttons are shown: it is a UI convenience, not security. Real access control
+/// belongs on the API.
 class SessionProvider extends ChangeNotifier {
-  bool _admin = true;
-  AppRoute _route = AppRoute.dashboard;
+  SessionProvider({Set<String> permissions = const {}})
+      : _perms = {for (final p in permissions) p.trim().toUpperCase()} {
+    _route = _firstRoute();
+  }
 
-  bool get isAdmin => _admin;
+  Set<String> _perms;
+  late AppRoute _route;
+
   AppRoute get route => _route;
 
-  List<AppRoute> get routes =>
-      _admin ? AppRoute.values : const [AppRoute.sell, AppRoute.sales];
+  /// True when the person holds [permission] (for example `Perm.createSales`).
+  bool can(String permission) => _perms.contains(permission.trim().toUpperCase());
 
-  /// Called after sign-in: the role from the server decides which screens show.
-  void applyRole({required bool admin}) {
-    _admin = admin;
-    _route = routes.first;
+  /// Whether [route] is offered to this person.
+  bool canOpen(AppRoute route) => switch (route) {
+        // Every signed-in person gets the dashboard.
+        AppRoute.dashboard => true,
+        AppRoute.inventory => can(Perm.viewInventory),
+        AppRoute.sell => can(Perm.createSales),
+        AppRoute.sales => can(Perm.viewSales),
+        AppRoute.payments => can(Perm.viewPayment),
+      };
+
+  /// The tabs this person gets, in menu order. The dashboard is always first.
+  List<AppRoute> get routes => AppRoute.values.where(canOpen).toList();
+
+  AppRoute _firstRoute() {
+    final r = routes;
+    return r.isEmpty ? AppRoute.dashboard : r.first;
+  }
+
+  /// Called after sign-in.
+  void applyUser(AuthUser user) {
+    _perms = {for (final p in user.permissions) p.trim().toUpperCase()};
+    _route = _firstRoute();
     notifyListeners();
   }
 
-  /// Called on sign-out so the next person starts from a clean slate.
-  void reset() => applyRole(admin: false);
-
-  void setAdmin(bool value) {
-    if (_admin == value) return;
-    _admin = value;
-    if (!routes.contains(_route)) _route = routes.first;
+  /// Called on sign-out so the next person starts with nothing.
+  void reset() {
+    _perms = {};
+    _route = _firstRoute();
     notifyListeners();
   }
 

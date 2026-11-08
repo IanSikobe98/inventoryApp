@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stockroom_app/models/auth.dart';
+import 'package:stockroom_app/models/permissions.dart';
 
 import 'auth_helpers.dart';
 
@@ -16,6 +17,31 @@ void main() {
       final c = AuthChallenge.fromJson(authJson(ok: false));
       expect(c.success, isFalse);
       expect(c.message, 'Invalid Username or Password!');
+    });
+
+    test('success is recognised however the enum arrives', () {
+      for (final code in ['SUCCESS', 'success', 'Success', '00', 0, '200', 'SUCCESSFUL',
+        {'name': 'SUCCESS', 'code': '00'}, {'code': '00'}]) {
+        expect(AuthChallenge.fromJson({'responseCode': code}).success, isTrue,
+            reason: '$code');
+      }
+    });
+
+    test('an unrecognised code is reported on screen with the raw value', () {
+      final c = AuthChallenge.fromJson(
+          {'responseCode': 'PENDING_REVIEW', 'responseMessage': 'Hmm'});
+      expect(c.success, isFalse);
+      expect(c.message, contains('PENDING_REVIEW'));
+      expect(c.message, contains('Hmm'));
+    });
+
+    test('a known failure keeps the plain server message', () {
+      for (final code in ['FAIL', 'fail', 'FAILED', 'ERROR', '01']) {
+        final c = AuthChallenge.fromJson(
+            {'responseCode': code, 'responseMessage': 'Invalid Credentials'});
+        expect(c.success, isFalse);
+        expect(c.message, 'Invalid Credentials', reason: code);
+      }
     });
 
     test('a missing or odd expiry falls back to 5 minutes', () {
@@ -38,7 +64,14 @@ void main() {
       expect(r.token, 'jwt-token-123');
       expect(r.user!.name, 'Ian Walter');
       expect(r.user!.role, 'ADMIN');
-      expect(r.user!.permissions, ['SALES_CREATE', 'STOCK_VIEW']);
+      expect(r.user!.permissions, Perm.all.toList());
+    });
+
+    test('a returned token counts as success even with an odd code', () {
+      final r = OtpResult.fromJson({'responseCode': '00', 'token': 't', 'user': {'role': 'ADMIN'}});
+      expect(r.success, isTrue);
+      final r2 = OtpResult.fromJson({'responseCode': 'WEIRD', 'token': 't'});
+      expect(r2.success, isTrue);
     });
 
     test('failure has no token', () {
@@ -48,6 +81,38 @@ void main() {
       expect(r.user, isNull);
       expect(r.message, 'wrong OTP Provided');
     });
+  });
+
+  test('reads the real validateOtp reply from the server', () {
+    final r = OtpResult.fromJson({
+      'responseCode': '00',
+      'responseMessage': 'isikobe signed in successfully',
+      'token': 'eyJ0eXAi.payload.sig',
+      'user': {
+        'role': 'SYSTEM_ADMIN',
+        'user': {
+          'userId': 1,
+          'username': 'isikobe',
+          'phone': '0716561507',
+          'role': {'roleId': 1, 'roleName': 'SYSTEM_ADMIN'},
+          'status': {'statusId': 1, 'statusName': 'ACTIVE'},
+        },
+        'usersPerm': [
+          'VIEW_INVENTORY',
+          'CREATE_INVENTORY',
+          'UPDATE_INVENTORY',
+          'CREATE_SALES',
+          'VIEW_SALES'
+        ],
+      },
+    });
+    expect(r.success, isTrue);
+    expect(r.token, 'eyJ0eXAi.payload.sig');
+    expect(r.user!.username, 'isikobe');
+    expect(r.user!.name, 'isikobe');
+    expect(r.user!.role, 'SYSTEM_ADMIN');
+    expect(r.user!.permissions, hasLength(5));
+    expect(r.user!.permissions, contains('CREATE_SALES'));
   });
 
   group('AuthUser', () {

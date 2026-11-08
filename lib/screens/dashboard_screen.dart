@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/dashboard_data.dart';
 import '../providers/dashboard_provider.dart';
+import '../models/permissions.dart';
 import '../providers/session_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
@@ -48,11 +49,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       title: 'Dashboard',
       subtitle: 'Stock and sales at a glance.',
       onRefresh: () => context.read<DashboardProvider>().load(),
-      action: FilledButton.icon(
-        onPressed: () => context.read<SessionProvider>().go(AppRoute.sell),
-        icon: const Icon(Icons.add, size: 18),
-        label: const Text('Record a sale'),
-      ),
+      action: context.watch<SessionProvider>().can(Perm.createSales)
+          ? FilledButton.icon(
+              onPressed: () =>
+                  context.read<SessionProvider>().go(AppRoute.sell),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Record a sale'),
+            )
+          : null,
       children: [content],
     );
   }

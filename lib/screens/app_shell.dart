@@ -57,16 +57,20 @@ class AppShell extends StatelessWidget {
         ],
       ),
       body: SafeArea(child: body),
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: AppColors.paper2,
-        indicatorColor: AppColors.rustSoft,
-        selectedIndex: session.routes.indexOf(session.route),
-        onDestinationSelected: (i) => session.go(session.routes[i]),
-        destinations: [
-          for (final r in session.routes)
-            NavigationDestination(icon: Icon(r.icon), label: r.shortLabel),
-        ],
-      ),
+      // A navigation bar needs at least two tabs; with one there is nothing to switch to.
+      bottomNavigationBar: session.routes.length < 2
+          ? null
+          : NavigationBar(
+              backgroundColor: AppColors.paper2,
+              indicatorColor: AppColors.rustSoft,
+              selectedIndex: session.routes.indexOf(session.route),
+              onDestinationSelected: (i) => session.go(session.routes[i]),
+              destinations: [
+                for (final r in session.routes)
+                  NavigationDestination(
+                      icon: Icon(r.icon), label: r.shortLabel),
+              ],
+            ),
     );
   }
 }

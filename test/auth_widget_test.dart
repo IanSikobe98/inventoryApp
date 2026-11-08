@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stockroom_app/app.dart';
+import 'package:stockroom_app/models/permissions.dart';
 import 'package:stockroom_app/services/password_cipher.dart';
 
 import 'auth_helpers.dart';
@@ -126,9 +127,10 @@ void main() {
     expect(find.byKey(const Key('signOut')), findsOneWidget);
   });
 
-  testWidgets('an employee does not get the admin screens', (tester) async {
+  testWidgets('a cashier does not get the inventory or payment tabs', (tester) async {
     await openApp(tester);
-    server.otpResponse = otpJson(role: 'Employee');
+    server.otpResponse =
+        otpJson(role: 'Employee', perms: [Perm.createSales, Perm.viewSales]);
     await typeCredentials(tester);
     await tester.enterText(find.byKey(const Key('otpField')), '1');
     await tester.tap(find.byKey(const Key('otpSubmit')));
@@ -137,6 +139,54 @@ void main() {
     expect(find.text('Record sale'), findsWidgets);
     expect(find.text('Inventory'), findsNothing);
     expect(find.text('Payment modes'), findsNothing);
+  });
+
+  testWidgets('the tabs follow the permissions from sign-in', (tester) async {
+    await openApp(tester);
+    // the account from the real server reply: no payment permissions
+    server.otpResponse = otpJson(role: 'SYSTEM_ADMIN', perms: [
+      Perm.viewInventory,
+      Perm.createInventory,
+      Perm.updateInventory,
+      Perm.createSales,
+      Perm.viewSales,
+    ]);
+    await typeCredentials(tester);
+    await tester.enterText(find.byKey(const Key('otpField')), '1');
+    await tester.tap(find.byKey(const Key('otpSubmit')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dashboard'), findsWidgets);
+    expect(find.text('Inventory'), findsWidgets);
+    expect(find.text('Record sale'), findsWidgets);
+    expect(find.text('Sales log'), findsWidgets);
+    expect(find.text('Payment modes'), findsNothing);
+  });
+
+  testWidgets('an account with no permissions sees a "No access" page and can sign out',
+      (tester) async {
+    await openApp(tester);
+    server.otpResponse = otpJson(perms: const []);
+    await typeCredentials(tester);
+    await tester.enterText(find.byKey(const Key('otpField')), '1');
+    await tester.tap(find.byKey(const Key('otpSubmit')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No access yet'), findsOneWidget);
+    expect(find.byKey(const Key('signOut')), findsOneWidget);
+  });
+
+  testWidgets('a single permitted screen works (no bottom bar on a phone)',
+      (tester) async {
+    await openApp(tester, size: const Size(420, 900));
+    server.otpResponse = otpJson(perms: [Perm.viewSales]);
+    await typeCredentials(tester);
+    await tester.enterText(find.byKey(const Key('otpField')), '1');
+    await tester.tap(find.byKey(const Key('otpSubmit')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.text('Sales log'), findsWidgets);
   });
 
   testWidgets('Sign out asks first, then returns to sign-in', (tester) async {
